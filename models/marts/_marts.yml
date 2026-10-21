@@ -1,0 +1,92 @@
+# _marts.yml — documentation and tests for the mart (report-ready) models.
+# These are what Tableau and Hightouch read.
+
+version: 2
+
+models:
+  - name: fct_sales
+    description: >
+      Sales fact table. One row per order, all statuses, with product and
+      customer region attached. Revenue = revenue_amount, which counts
+      COMPLETED orders only. Shipped, pending and cancelled orders are kept
+      with revenue_amount = 0. No personal data (names, emails).
+    columns:
+      - name: order_id
+        description: Unique order ID.
+        data_tests:
+          - unique
+          - not_null
+      - name: order_date
+        description: Date the order was placed.
+      - name: order_month
+        description: First day of the order's month, e.g. 2025-12-01. Used for monthly trends.
+      - name: customer_id
+        description: Customer who placed the order.
+      - name: product_id
+        description: Product bought.
+      - name: customer_region
+        description: Region of the customer. 'Unknown' when the customer is missing or doesn't exist.
+        data_tests:
+          - not_null
+      - name: product_name
+        description: Product name.
+        data_tests:
+          - not_null       # would fail if an order's product were missing from stg_products
+      - name: product_category
+        description: Product group.
+      - name: order_status
+        description: COMPLETED, SHIPPED, PENDING or CANCELLED.
+      - name: total_amount
+        description: Order value in GBP, whatever the status.
+      - name: is_revenue
+        description: TRUE when the order counts as revenue (status COMPLETED).
+      - name: revenue_amount
+        description: >
+          Revenue in GBP. Equals total_amount for COMPLETED orders, 0 otherwise.
+          SUM this column for total revenue.
+        data_tests:
+          - not_null
+      - name: has_valid_customer
+        description: FALSE when customer_id is missing or not found in stg_customers.
+      - name: source_row_count
+        description: How many identical raw rows were combined into this order (see stg_orders).
+
+  - name: agg_monthly_sales
+    description: >
+      Monthly sales summary built from fct_sales. One row per month.
+      Answers "What are the monthly sales trends?"
+    columns:
+      - name: order_month
+        description: First day of the month.
+        data_tests:
+          - unique
+          - not_null
+      - name: total_orders
+        description: Orders placed that month, every status.
+      - name: completed_orders
+        description: COMPLETED orders that month.
+      - name: revenue
+        description: Revenue in GBP (COMPLETED orders only).
+
+  - name: agg_product_sales
+    description: >
+      Product sales summary built from fct_sales. One row per product.
+      Answers "Which products generate the most sales?"
+    columns:
+      - name: product_id
+        description: Product ID.
+        data_tests:
+          - unique
+          - not_null
+      - name: product_name
+        description: Product name.
+      - name: product_category
+        description: Product group.
+      - name: total_orders
+        description: Orders for this product, every status.
+      - name: completed_orders
+        description: COMPLETED orders for this product.
+      - name: revenue
+        description: Revenue in GBP (COMPLETED orders only).
+      - name: revenue_rank
+        description: 1 = highest revenue. Products with equal revenue share a rank.

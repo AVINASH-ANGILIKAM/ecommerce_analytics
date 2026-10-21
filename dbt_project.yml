@@ -1,0 +1,28 @@
+# dbt_project.yml — the main settings file of a dbt project.
+# dbt looks for this file first. If it's missing, dbt doesn't know this folder is a project.
+
+name: 'ecommerce_sales'      # the project's name (lowercase, underscores only)
+version: '1.0.0'
+
+# Which connection profile to use. Only matters for dbt Core (dbt on your laptop):
+# it must match the top-level name in your profiles.yml. dbt Cloud ignores it.
+profile: 'ecommerce_sales'
+
+# Where dbt finds each kind of file
+model-paths: ["models"]       # SQL models (stg_, fct_, agg_ files)
+test-paths: ["tests"]         # singular tests (our reconciliation checks)
+analysis-paths: ["analyses"]  # SQL you run by hand; dbt never builds these into tables
+
+clean-targets: ["target", "dbt_packages"]   # folders deleted by `dbt clean`
+
+# How each folder of models is built in Snowflake.
+#   view  = a saved query. Nothing is stored; it re-runs every time someone reads it.
+#           Example: stg_orders always shows the latest RAW_ORDERS, cleaned on the fly.
+#   table = the result is calculated once per dbt run and stored.
+#           Example: agg_monthly_sales is stored, so Tableau reads it quickly.
+models:
+  ecommerce_sales:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

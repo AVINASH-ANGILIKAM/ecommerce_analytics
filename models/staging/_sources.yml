@@ -1,0 +1,74 @@
+# _sources.yml — tells dbt where the RAW tables live.
+#
+# A "source" is a table that dbt did NOT create: it arrived from outside
+# (loaded by snowflake/ecommerce_worksheet.sql now, by Fivetran in a real project).
+# Models read it with   {{ source('raw', 'raw_orders') }}
+# and dbt turns that into   ECOM_DB.RAW.raw_orders
+#
+# (Snowflake ignores upper/lower case for unquoted names, so raw_orders = RAW_ORDERS.)
+#
+# The tests here check the RAW data. They are set to severity: warn on purpose:
+# raw data is what the source sent, and it is the staging models' job to fix it.
+# A warning means "dbt found something, look at it", without stopping the run.
+# Example: customer 1 has region 'south' in lowercase. That shows up here as a
+# warning on every run, so nobody forgets the source sends inconsistent regions.
+
+version: 2
+
+sources:
+  - name: raw                      # the name we use in source('raw', ...)
+    description: >
+      Raw online-store data, exactly as it was loaded. Never edited by hand.
+      Loaded by snowflake/ecommerce_worksheet.sql (in a real project: by Fivetran).
+    schema: RAW                    # the database comes from your connection (ECOM_DB)
+
+    tables:
+      - name: raw_customers
+        description: One row per customer, as sent by the source system.
+        columns:
+          - name: customer_id
+            data_tests:
+              - unique:
+                  config:
+                    severity: warn
+              - not_null:
+                  config:
+                    severity: warn
+          - name: region
+            data_tests:
+              - accepted_values:   # EXPECTED WARNING: customer 1 has 'south' (lowercase)
+                  arguments:
+                    values: ['North', 'South', 'East', 'West']
+                  config:
+                    severity: warn
+
+      - name: raw_products
+        description: One row per product, as sent by the source system.
+        columns:
+          - name: product_id
+            data_tests:
+              - unique:
+                  config:
+                    severity: warn
+              - not_null:
+                  config:
+                    severity: warn
+
+      - name: raw_orders
+        description: One row per order, as sent by the source system.
+        columns:
+          - name: order_id
+            data_tests:
+              - unique:
+                  config:
+                    severity: warn
+              - not_null:
+                  config:
+                    severity: warn
+          - name: order_status
+            data_tests:
+              - accepted_values:   # the 4 statuses the source sends today
+                  arguments:
+                    values: ['Completed', 'Pending', 'Shipped', 'Cancelled']
+                  config:
+                    severity: warn

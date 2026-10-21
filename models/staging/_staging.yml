@@ -1,0 +1,113 @@
+# _staging.yml — documentation and tests for the staging models.
+#
+# description: shows up in the dbt docs (Catalog in dbt Cloud)
+# data_tests:  checks dbt runs on every `dbt test` or `dbt build`
+#
+# Built-in tests used:
+#   unique          -> no value appears twice      (e.g. no order_id twice)
+#   not_null        -> no empty values             (e.g. every order has an order_id)
+#   accepted_values -> only values from a list     (e.g. status is one of 4 words)
+#   relationships   -> every value exists in another model
+#                      (e.g. every customer_id in orders exists in customers)
+#
+# severity: error (the default) = stop: the data is not safe to use.
+# severity: warn                = flag it, but carry on.
+# Every test in this file is error: after cleaning, the data MUST pass.
+
+version: 2
+
+models:
+  - name: stg_customers
+    description: >
+      Cleaned customers. One row per customer. Text trimmed, emails lowercase,
+      regions in one consistent spelling (South, not south).
+      Source: raw.raw_customers.
+    columns:
+      - name: customer_id
+        description: Unique customer ID, e.g. 1.
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_name
+        description: Full name (mock data).
+      - name: email
+        description: Mock email address (example.com), lowercase.
+      - name: region
+        description: Region where the customer lives. North, South, East or West.
+        data_tests:
+          - not_null
+          - accepted_values:       # must pass: staging fixed 'south' -> 'South'
+              arguments:
+                values: ['North', 'South', 'East', 'West']
+      - name: signup_date
+        description: Date the customer created their account.
+
+  - name: stg_products
+    description: >
+      Cleaned products. One row per product. Source: raw.raw_products.
+    columns:
+      - name: product_id
+        description: Unique product ID, e.g. 209.
+        data_tests:
+          - unique
+          - not_null
+      - name: product_name
+        description: Product name, e.g. Laptop.
+      - name: category
+        description: Product group, e.g. Electronics.
+        data_tests:
+          - not_null
+
+  - name: stg_orders
+    description: >
+      Cleaned orders. One row per order. Status is in capitals and exact
+      duplicate rows are combined (source_row_count shows how many raw rows
+      each order came from). Source: raw.raw_orders.
+    columns:
+      - name: order_id
+        description: Unique order ID, e.g. 101.
+        data_tests:
+          - unique          # if it fails, two DIFFERENT orders share an ID
+          - not_null
+
+      - name: customer_id
+        description: Customer who placed the order. Must exist in stg_customers.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+
+      - name: product_id
+        description: Product that was bought. Must exist in stg_products.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_products')
+                field: product_id
+
+      - name: order_date
+        description: Date the order was placed.
+        data_tests:
+          - not_null
+
+      - name: order_status
+        description: >
+          COMPLETED (delivered, counts as revenue), SHIPPED (sent, not delivered yet),
+          PENDING (placed, not sent yet), CANCELLED (cancelled, never revenue).
+        data_tests:
+          - accepted_values:       # must pass: staging made every status capitals
+              arguments:
+                values: ['COMPLETED', 'SHIPPED', 'PENDING', 'CANCELLED']
+
+      - name: total_amount
+        description: Order value in GBP. Not revenue on its own; see fct_sales.revenue_amount.
+        data_tests:
+          - not_null
+
+      - name: source_row_count
+        description: >
+          How many identical raw rows were combined into this row.
+          1 = normal. 2 or more = the source sent this order more than once.
