@@ -1,0 +1,48 @@
+# _orders_assignment.yml - TASK 4: descriptions + data tests for the assignment models.
+#
+# not_null        = the column must never be empty
+# unique          = no value may appear twice (here: one row per order)
+# accepted_values = only the statuses the business agreed on are allowed
+# relationships   = every completed order must also exist in the staging model
+#
+# YAML shows "what belongs to what" with INDENTATION (2 spaces per level).
+# One wrong space and dbt reads the file differently or fails to parse it.
+
+version: 2
+
+models:
+  - name: stg_orders_assignment
+    description: Staging copy of RAW.ORDERS - one row per order.
+    columns:
+      - name: order_id
+        description: Unique id of the order (the primary key).
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: The customer who placed the order.
+        data_tests:
+          - not_null
+      - name: order_status
+        description: Where the order is in its life - COMPLETED, PENDING or CANCELLED.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['COMPLETED', 'PENDING', 'CANCELLED']   # confirmed with the business: 3 valid statuses
+      - name: order_amount
+        description: Order value.
+        data_tests:
+          - not_null
+
+  - name: completed_orders
+    description: Completed orders only - the base for revenue reporting.
+    columns:
+      - name: order_id
+        description: Unique id of the order.
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_orders_assignment')
+                field: order_id

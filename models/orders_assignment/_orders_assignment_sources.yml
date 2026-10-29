@@ -1,0 +1,16 @@
+# _orders_assignment_sources.yml - tells dbt where the assignment's RAW table lives.
+#
+# ORDERS was created and loaded by hand in Snowflake (Task 2, Ecommerce_Pipeline_Project.sql).
+# Models read it with   source('orders_assignment', 'orders')
+# and dbt turns that into   ECOM_DB.RAW.ORDERS
+
+version: 2
+
+sources:
+  - name: orders_assignment
+    description: Sample e-commerce orders for the orders assignment.
+    database: ECOM_DB
+    schema: RAW
+    tables:
+      - name: orders
+        description: Raw orders, one row per order (5 sample rows).
