@@ -35,6 +35,7 @@ sources:
                   config:
                     severity: warn
           - name: region
+            description: region as received from the raw source.
             data_tests:
               - accepted_values:   # EXPECTED WARNING: customer 1 has 'south' (lowercase)
                   arguments:

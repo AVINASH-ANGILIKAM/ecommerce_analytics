@@ -1,29 +1,38 @@
 /*
-  stg_customers  —  "stg" = staging: the cleaned copy of one raw table.
-  One row per customer. Same 20 rows as RAW_CUSTOMERS, tidied up.
-
-  Staging models only clean. They don't join tables or calculate business numbers.
-  Example: region 'south' (customer 1) becomes 'South', so Tableau shows
-  ONE South region instead of two.
+  stg_customers — staging model for customers.
+  Cleans customer names, emails, and regions.
+  Region values are standardized to North, South, East, or West.
 */
 
 with source as (
 
-    -- source() points at a raw table that dbt didn't create (see _sources.yml)
-    select * from {{ source('raw', 'raw_customers') }}
+    select *
+    from {{ source('raw', 'raw_customers') }}
 
 ),
 
 cleaned as (
 
     select
-        cast(customer_id as integer)    as customer_id,    -- whole number, e.g. 1
-        trim(customer_name)             as customer_name,
-        lower(trim(email))              as email,          -- 'A@Example.com' -> 'a@example.com'
-        initcap(trim(region))           as region,         -- 'south' -> 'South'
-        cast(signup_date as date)       as signup_date
+        cast(customer_id as integer) as customer_id,
+
+        trim(customer_name) as customer_name,
+
+        lower(trim(email)) as email,
+
+        case
+            when upper(trim(region)) = 'NORTH' then 'North'
+            when upper(trim(region)) = 'SOUTH' then 'South'
+            when upper(trim(region)) = 'EAST'  then 'East'
+            when upper(trim(region)) = 'WEST'  then 'West'
+            else trim(region)
+        end as region,
+
+        signup_date
+
     from source
 
 )
 
-select * from cleaned
+select *
+from cleaned
